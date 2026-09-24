@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VERITAS - Evidence Intelligence & Temporal Compliance Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .arrow-scroll-wrap { position: relative; }
+        .arrow-scroll-content { overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+        .arrow-scroll-content::-webkit-scrollbar { display: none; }
+        * { scrollbar-width: none; }
+        *::-webkit-scrollbar { display: none; }
+        .scroll-arrow {
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 2px rgba(15,23,42,.06);
+            cursor: pointer;
+            transition: all .15s ease;
+            flex-shrink: 0;
+        }
+        .scroll-arrow:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+        .fade-in { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="h-full bg-[#f8fafc] text-slate-900 antialiased flex flex-col selection:bg-blue-600 selection:text-white">
+
+    <div id="app" class="h-full flex flex-col">
+        <!-- Rendered dynamically by JavaScript -->
+    </div>
+
+    <!-- Notification Toast Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2"></div>
+
+    <script>
+        const state = {
+            currentScreen: 'login', // login, dashboard, tenders, tender_overview, upload_tender, requirements, bidders, bidder_overview, document_centre, document_viewer, extraction, compliance_results, compliance_dashboard, contradiction_radar, temporal, prove_it, officer_review, final_decision, audit_trail, reports, connectors, profile_details, profile_settings, profile_security
+            isAuthenticated: false,
+            userRole: 'Procurement Officer',
+            userName: 'Vikram Malhotra, IRAS',
+            activeTenderId: 'GEM/2026/B/4819204',
+            activeBidderId: 'bidder_a',
+            selectedDocId: 'doc_gst_01',
+            selectedReqId: 'req_01',
+            filterStatus: 'all',
+            searchQuery: '',
+            workflowTenderSearch: '',
+            workflowBidderSearch: '',
+
+            modalOpen: false,
+            modalType: null, // 'prove_it_drawer', 'clarification', 'reject_confirm', 'success_msg'
+            modalData: null,
+            tenders: [
+                { id: 'GEM/2026/B/4819204', title: 'High-Performance Enterprise Server Infrastructure', ministry: 'Ministry of Electronics & IT', value: '₹4.82 Cr', closingDate: '2026-04-12', status: 'Active', itemsCount: 42, biddersCount: 3, riskLevel: 'Medium' },
+                { id: 'GEM/2026/B/3910244', title: 'AI-Powered Automated Border Surveillance Cameras', ministry: 'Ministry of Defence', value: '₹14.50 Cr', closingDate: '2026-04-20', status: 'Active', itemsCount: 18, biddersCount: 5, riskLevel: 'High' },
+                { id: 'GEM/2026/B/5109281', title: 'Secure Cryptographic Hardware Security Modules (HSM)', ministry: 'Ministry of Finance', value: '₹2.10 Cr', closingDate: '2026-03-30', status: 'Under Review', itemsCount: 12, biddersCount: 2, riskLevel: 'Low' },
+                { id: 'GEM/2026/B/2091823', title: 'Enterprise Cloud ERP & Compliance License Suites', ministry: 'Ministry of Commerce', value: '₹8.90 Cr', closingDate: '2026-05-02', status: 'Draft', itemsCount: 30, biddersCount: 0, riskLevel: 'Low' }
+            ],
+            bidders: [
+                { id: 'bidder_a', name: 'Alpha Infotech Solutions Pvt Ltd', gstin: '29AABCA1234P1Z5', turnover: '₹24.5 Cr', status: 'Verified', score: 98, risk: 'Low', udam: 'UDAM-KR-03-0092182', pan: 'AABCA1234P' },
+                { id: 'bidder_b', name: 'Beta Systems & Networks Corp', gstin: '07AACBB5678Q1Z2', turnover: '₹18.2 Cr', status: 'Needs Review', score: 74, risk: 'Medium', udam: 'UDAM-DL-08-0041293', pan: 'AACBB5678Q' },
+                { id: 'bidder_c', name: 'Gamma Quantum Technologies', gstin: '33AABCG9012R1Z1', turnover: '₹9.8 Cr', status: 'Pending', score: 52, risk: 'High', udam: 'UDAM-TN-02-0018293', pan: 'AABCG9012R' }
+            ],
+            documents: [
+                { id: 'doc_gst_01', name: 'GST_Return_GSTR3B_Q3_2025.pdf', bidder: 'Alpha Infotech', type: 'Financial Proof', size: '2.4 MB', date: '2026-03-10', verified: true, pages: 12 },
+                { id: 'doc_gst_02', name: 'GST_Certificate_Registration.pdf', bidder: 'Beta Systems', type: 'Tax Document', size: '1.1 MB', date: '2026-03-11', verified: false, pages: 3 },
+                { id: 'doc_aud_01', name: 'Audited_Balance_Sheet_FY24-25.pdf', bidder: 'Alpha Infotech', type: 'Turnover & Audit', size: '8.5 MB', date: '2026-03-10', verified: true, pages: 45 },
+                { id: 'doc_iso_01', name: 'ISO_27001_Compliance_Cert.pdf', bidder: 'Gamma Quantum', type: 'Quality Cert', size: '3.2 MB', date: '2026-03-12', verified: false, pages: 5 }
+            ],
+            requirements: [
+                { id: 'req_01', code: 'REQ-FIN-01', category: 'Financial', desc: 'Minimum average annual turnover of ₹15 Cr over last 3 financial years.', mandatory: true, status: 'Verified', bidderA: 'Passed (₹24.5 Cr)', bidderB: 'Passed (₹18.2 Cr)', bidderC: 'Failed (₹9.8 Cr)' },
+                { id: 'req_02', code: 'REQ-TAX-02', category: 'Taxation', desc: 'Valid active GSTIN registration in the state of execution with zero default.', mandatory: true, status: 'Verified', bidderA: 'Passed', bidderB: 'Contradiction', bidderC: 'Pending' },
+                { id: 'req_03', code: 'REQ-EXP-03', category: 'Experience', desc: 'Successfully executed at least 2 similar server infrastructure tenders > ₹3 Cr.', mandatory: true, status: 'Needs Review', bidderA: 'Passed', bidderB: 'Needs Review', bidderC: 'Failed' },
+                { id: 'req_04', code: 'REQ-SEC-04', category: 'Security', desc: 'OEM ISO 27001 & CMMI Level 5 certification valid on bid submission date.', mandatory: true, status: 'Verified', bidderA: 'Passed', bidderB: 'Passed', bidderC: 'Missing' },
+                { id: 'req_05', code: 'REQ-REG-05', category: 'Statutory', desc: 'Not blacklisted by any Central/State Ministry or Public Sector Undertaking.', mandatory: true, status: 'Verified', bidderA: 'Clean', bidderB: 'Clean', bidderC: 'Clean' }
+            ],
+            auditTrail: [
+                { time: '10:42 AM', event: 'Tender ingested and rules parsed from GeM API schema', actor: 'System Core', type: 'system' },
+                { time: '10:45 AM', event: 'Bidder A uploaded 14 mandatory verification files', actor: 'Alpha Infotech', type: 'upload' },
+                { time: '10:48 AM', event: 'Temporal compliance engine validated GST & ISO certificate validity dates', actor: 'VERITAS AI', type: 'ai' },
+                { time: '11:02 AM', event: 'Contradiction detected: Bidder B Turnover mismatch between GSTR-3B and Audited P&L', actor: 'Radar Engine', type: 'alert' },
+                { time: '11:15 AM', event: 'Officer Vikram Malhotra reviewed Bidder A financial evidence graph', actor: 'Vikram Malhotra', type: 'officer' }
+            ],
+            connectors: [
+                { name: 'GSTIN Verification API', status: 'Operational', latency: '142ms', lastSync: 'Real-time', icon: 'file-text' },
+                { name: 'Udyam Registration Portal', status: 'Operational', latency: '210ms', lastSync: '10 mins ago', icon: 'shield-check' },
+                { name: 'MCA21 Corporate Registry', status: 'Operational', latency: '350ms', lastSync: '1 hour ago', icon: 'building-2' },
+                { name: 'EPFO & ESIC Compliance Gateway', status: 'Operational', latency: '180ms', lastSync: '30 mins ago', icon: 'users' },
+                { name: 'GeM Blacklist & Debarment DB', status: 'Operational', latency: '95ms', lastSync: 'Real-time', icon: 'alert-triangle' },
+                { name: 'DigiLocker Secure Vault API', status: 'Operational', latency: '120ms', lastSync: 'Real-time', icon: 'lock' }
+            ]
+        };
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white transition-all transform translate-y-2 opacity-0 ${type === 'success' ? 'bg-slate-900 border border-slate-700' : 'bg-rose-600'}`;
+            toast.innerHTML = `<i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-4 h-4 text-blue-400"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function navigateTo(screen) {
+            state.currentScreen = screen;
+            render();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function scrollPanel(id, direction) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.scrollBy({ left: direction * 260, behavior: 'smooth' });
+        }
+
+        function openModal(type, data = null) {
+            state.modalOpen = true;
+            state.modalType = type;
+            state.modalData = data;
+            render();
+        }
+
+        function closeModal() {
+            state.modalOpen = false;
+            state.modalType = null;
+            state.modalData = null;
+            render();
+        }
+
+        function findTenderByGemId(value) {
+            const query = String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+            if (!query) return null;
+            return state.tenders.find(t => String(t.id).toUpperCase().replace(/\s+/g, '') === query) || null;
+        }
+
+        function findBidderByName(value) {
+            const query = String(value || '').trim().toLowerCase();
+            if (!query) return null;
+            return state.bidders.find(b => String(b.name).toLowerCase().includes(query)) || null;
+        }
+
+        function searchWorkflowBidder(targetScreen = 'bidders') {
+            const input = document.getElementById('workflowBidderSearch');
+            const query = input ? input.value.trim() : state.workflowBidderSearch;
+            state.workflowBidderSearch = query;
+
+            const bidder = findBidderByName(query);
+            if (!bidder) {
+                showToast('No bidder found for this name. Try entering a bidder name.', 'error');
+                return;
+            }
+
+            state.activeBidderId = bidder.id;
+            state.workflowBidderSearch = bidder.name;
+            navigateTo(targetScreen);
+        }
+
+        function searchWorkflowTender(targetScreen = 'tender_overview') {
+            const input = document.getElementById('workflowGemSearch');
+            const query = input ? input.value.trim() : state.workflowTenderSearch;
+            state.workflowTenderSearch = query;
+
+            const tender = findTenderByGemId(query);
+            if (!tender) {
+                showToast('No tender found for this GeM ID. Try an ID like GEM/2026/B/4819204.', 'error');
+                return;
+            }
+
+            state.activeTenderId = tender.id;
+            state.workflowTenderSearch = tender.id;
+
+            if (targetScreen === 'bidders') {
+                navigateTo('bidders');
+            } else if (targetScreen === 'document_centre') {
+                navigateTo('document_centre');
+            } else if (targetScreen === 'requirements') {
+                navigateTo('requirements');
+            } else {
+                navigateTo('tender_overview');
+            }
+        }
+
+        function renderWorkflowBidderSearch() {
+            return `
+                <div class="flex justify-end mb-4">
+                    <div class="w-full sm:w-[360px] bg-white rounded-xl border border-slate-200 shadow-sm p-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <label for="workflowBidderSearch" class="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Search Bidder Name</label>
+                                <input id="workflowBidderSearch"
+                                    type="text"
+                                    value=""
+                                    placeholder="Enter bidder name"
+                                    onkeydown="if(event.key === 'Enter') searchWorkflowBidder()"
+                                    class="w-full px-2 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50 font-medium">
+                            </div>
+                            <button onclick="searchWorkflowBidder()"
+                                class="w-8 h-8 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition flex items-center justify-center shrink-0"
+                                title="Search Bidder Name">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderWorkflowGemSearch() {
+            return `
+                <div class="flex justify-end mb-4">
+                    <div class="w-full sm:w-[360px] bg-white rounded-xl border border-slate-200 shadow-sm p-2.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                                <i data-lucide="search" class="w-3.5 h-3.5"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <label for="workflowGemSearch" class="block text-[9px] font-semibold text-slate-500 uppercase tracking-wider mb-0.5">Search GeM ID</label>
+                                <input id="workflowGemSearch" type="text" value="" placeholder="GEM/2026/B/4819204" onkeydown="if(event.key === 'Enter') searchWorkflowTender()" class="w-full px-2 py-1.5 text-[11px] rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50 font-medium">
+                            </div>
+                            <button onclick="searchWorkflowTender()" class="w-8 h-8 bg-slate-900 hover:bg-slate-800 text-white rounded-lg transition flex items-center justify-center shrink-0" title="Search GeM ID"><i data-lucide="search" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleProfileMenu() {
+            const menu = document.getElementById('profileMenu');
+            if (!menu) return;
+            menu.classList.toggle('hidden');
+        }
+
+        function closeProfileMenu() {
+            const menu = document.getElementById('profileMenu');
+            if (menu) menu.classList.add('hidden');
+        }
+
+        function renderProfileDetails() {
+            return `
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Profile Details</h2>
+                            <p class="text-xs text-slate-500">Officer identity, department, role and access information.</p>
+                        </div>
+                        <button onclick="navigateTo('dashboard')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">Back to Dashboard</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 lg:col-span-1">
+                            <div class="flex flex-col items-center text-center">
+                                <div class="w-20 h-20 rounded-2xl bg-blue-600 text-white font-bold text-2xl flex items-center justify-center shadow-sm">VM</div>
+                                <h3 class="mt-4 text-base font-bold text-slate-900">${state.userName}</h3>
+                                <p class="text-xs text-slate-500 mt-1">Procurement Officer</p>
+                                <span class="mt-3 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold">Active Account</span>
+                            </div>
+                            <div class="mt-6 pt-5 border-t border-slate-100 space-y-3 text-xs">
+                                <div class="flex justify-between gap-4"><span class="text-slate-500">Employee ID</span><span class="font-semibold text-slate-900">GEM-PO-20481</span></div>
+                                <div class="flex justify-between gap-4"><span class="text-slate-500">Officer Grade</span><span class="font-semibold text-slate-900">Group A</span></div>
+                                <div class="flex justify-between gap-4"><span class="text-slate-500">Access Level</span><span class="font-semibold text-slate-900">Procurement Admin</span></div>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                            <h3 class="font-bold text-slate-900 text-sm mb-5">Officer Information</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Full Name</div><div class="text-sm font-semibold text-slate-900 mt-1">Vikram Malhotra, IRAS</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Designation</div><div class="text-sm font-semibold text-slate-900 mt-1">Procurement Officer</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Department</div><div class="text-sm font-semibold text-slate-900 mt-1">Government e-Marketplace Operations</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Organization</div><div class="text-sm font-semibold text-slate-900 mt-1">GeM Enterprise Procurement Cell</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Official Email</div><div class="text-sm font-semibold text-slate-900 mt-1">vikram.malhotra@gem.gov.in</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Office Location</div><div class="text-sm font-semibold text-slate-900 mt-1">New Delhi • Central Procurement Division</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Jurisdiction</div><div class="text-sm font-semibold text-slate-900 mt-1">Central GeM 4.0</div></div>
+                                <div class="p-4 rounded-xl bg-slate-50 border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Account Created</div><div class="text-sm font-semibold text-slate-900 mt-1">14 January 2026</div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                        <h3 class="font-bold text-slate-900 text-sm mb-4">Assigned Responsibilities</h3>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">Tender Verification</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">Bidder Compliance Review</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">Risk Assessment</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">Final Recommendation</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium">Audit Oversight</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProfileSettings() {
+            return `
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Profile Settings</h2>
+                            <p class="text-xs text-slate-500">Manage interface preferences and officer account configuration.</p>
+                        </div>
+                        <button onclick="navigateTo('dashboard')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">Back to Dashboard</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                            <h3 class="font-bold text-slate-900 text-sm">Portal Preferences</h3>
+                            <button onclick="showToast('Email notification preference updated', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left">
+                                <div><div class="text-xs font-semibold text-slate-900">Email Notifications</div><div class="text-[10px] text-slate-500 mt-1">Receive alerts for tender and verification events</div></div><span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">Enabled</span>
+                            </button>
+                            <button onclick="showToast('Audit alert preference updated', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left">
+                                <div><div class="text-xs font-semibold text-slate-900">Critical Audit Alerts</div><div class="text-[10px] text-slate-500 mt-1">Notify when high-risk compliance events are detected</div></div><span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">Enabled</span>
+                            </button>
+                            <button onclick="showToast('Compact dashboard preference saved', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left">
+                                <div><div class="text-xs font-semibold text-slate-900">Compact Dashboard View</div><div class="text-[10px] text-slate-500 mt-1">Keep cards and verification queues condensed</div></div><span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold">On</span>
+                            </button>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                            <h3 class="font-bold text-slate-900 text-sm">Account Configuration</h3>
+                            <div class="p-4 rounded-xl border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Default Tender View</div><div class="text-sm font-semibold text-slate-900 mt-1">Active & Under Review</div></div>
+                            <div class="p-4 rounded-xl border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Default Jurisdiction</div><div class="text-sm font-semibold text-slate-900 mt-1">Central GeM 4.0</div></div>
+                            <div class="p-4 rounded-xl border border-slate-200"><div class="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Session Timeout</div><div class="text-sm font-semibold text-slate-900 mt-1">30 minutes of inactivity</div></div>
+                            <button onclick="showToast('Account preferences saved successfully', 'success')" class="w-full px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">Save Preferences</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderSecuritySettings() {
+            return `
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Security & Access</h2>
+                            <p class="text-xs text-slate-500">Review authentication, session and access controls for this officer account.</p>
+                        </div>
+                        <button onclick="navigateTo('dashboard')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition">Back to Dashboard</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                            <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5"></i></div><div><div class="text-sm font-bold text-slate-900">Account Protected</div><div class="text-[10px] text-emerald-600 font-semibold">Security status: Good</div></div></div>
+                            <div class="mt-5 space-y-3 text-xs"><div class="flex justify-between"><span class="text-slate-500">MFA</span><span class="font-semibold text-emerald-600">Enabled</span></div><div class="flex justify-between"><span class="text-slate-500">Password</span><span class="font-semibold text-slate-900">Updated 18 days ago</span></div><div class="flex justify-between"><span class="text-slate-500">Recovery</span><span class="font-semibold text-emerald-600">Configured</span></div></div>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 lg:col-span-2">
+                            <h3 class="font-bold text-slate-900 text-sm mb-4">Authentication Controls</h3>
+                            <div class="space-y-3">
+                                <button onclick="showToast('Multi-factor authentication is already enabled', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left"><div><div class="text-xs font-semibold text-slate-900">Multi-Factor Authentication</div><div class="text-[10px] text-slate-500 mt-1">Authenticator app verification required for sign-in</div></div><span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">Enabled</span></button>
+                                <button onclick="showToast('Password change workflow opened', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left"><div><div class="text-xs font-semibold text-slate-900">Change Password</div><div class="text-[10px] text-slate-500 mt-1">Update your portal authentication password</div></div><i data-lucide="chevron-right" class="w-4 h-4 text-slate-400"></i></button>
+                                <button onclick="showToast('Recovery settings are verified', 'success')" class="w-full flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200 text-left"><div><div class="text-xs font-semibold text-slate-900">Account Recovery</div><div class="text-[10px] text-slate-500 mt-1">Recovery email and secondary verification configured</div></div><span class="px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-semibold">Verified</span></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4"><h3 class="font-bold text-slate-900 text-sm">Active Sessions</h3><span class="text-[10px] font-semibold text-slate-500">1 active session</span></div>
+                        <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200">
+                            <div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center"><i data-lucide="monitor" class="w-4 h-4"></i></div><div><div class="text-xs font-semibold text-slate-900">Windows Desktop • Chrome</div><div class="text-[10px] text-slate-500">Current session • Session ID VRT-2026-09124</div></div></div>
+                            <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold">Current</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderHeader() {
+            if (!state.isAuthenticated) return '';
+            return `
+                <header class="bg-white border-b border-slate-200 sticky top-0 z-40">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                        <!-- Brand & Title -->
+                        <div class="flex items-center gap-6">
+                            <div class="flex items-center gap-2.5 cursor-pointer" onclick="navigateTo('dashboard')">
+                                <div class="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white font-bold shadow-sm">V</div>
+                                <div>
+                                    <h1 class="font-bold text-slate-900 tracking-tight text-base flex items-center gap-2">VERITAS <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">GeM Enterprise</span></h1>
+                                    <p class="text-[11px] text-slate-500 font-medium">Evidence Intelligence & Temporal Compliance Engine</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Active Tender Selector Badge -->
+                            <div class="hidden md:flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 transition px-3 py-1.5 rounded-lg text-xs font-medium text-slate-700 cursor-pointer border border-slate-200" onclick="navigateTo('tenders')">
+                                <i data-lucide="folder-kanban" class="w-3.5 h-3.5 text-slate-500"></i>
+                                <span class="font-semibold text-slate-900">${state.activeTenderId}</span>
+                                <i data-lucide="chevron-down" class="w-3 h-3 text-slate-400"></i>
+                            </div>
+                        </div>
+
+                        <!-- User Profile & Quick Actions -->
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('connectors')" class="relative p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition border border-transparent hover:border-slate-200" title="Simulated Government Connectors">
+                                <i data-lucide="cpu" class="w-4 h-4"></i>
+                                <span class="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                            </button>
+                            <button onclick="navigateTo('audit_trail')" class="p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition border border-transparent hover:border-slate-200" title="Audit Trail">
+                                <i data-lucide="history" class="w-4 h-4"></i>
+                            </button>
+                            <div class="h-6 w-px bg-slate-200"></div>
+                            <div class="relative flex items-center gap-2.5 pl-1">
+                                <button onclick="toggleProfileMenu()" class="flex items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-slate-50 transition border border-transparent hover:border-slate-200" title="Officer Profile">
+                                    <div class="w-8 h-8 rounded-full bg-blue-600 text-white font-semibold text-xs flex items-center justify-center shadow-sm">VM</div>
+                                    <div class="hidden sm:block text-left">
+                                        <div class="text-xs font-semibold text-slate-900 leading-tight">${state.userName}</div>
+                                        <div class="text-[10px] text-slate-500 font-medium">Procurement Officer</div>
+                                    </div>
+                                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400"></i>
+                                </button>
+
+                                <div id="profileMenu" class="hidden absolute right-0 top-12 w-72 bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden">
+                                    <div class="p-4 bg-slate-50 border-b border-slate-200">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-11 h-11 rounded-xl bg-blue-600 text-white font-bold text-sm flex items-center justify-center shadow-sm">VM</div>
+                                            <div class="min-w-0">
+                                                <div class="text-sm font-bold text-slate-900 truncate">${state.userName}</div>
+                                                <div class="text-[10px] text-slate-500 font-medium">Procurement Officer</div>
+                                                <div class="text-[10px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Active Session</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="p-2">
+                                        <button onclick="closeProfileMenu(); navigateTo('profile_details');" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-left transition">
+                                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i data-lucide="user" class="w-4 h-4"></i></div>
+                                            <div><div class="text-xs font-semibold text-slate-900">Profile Details</div><div class="text-[10px] text-slate-500">View officer information</div></div>
+                                        </button>
+                                        <button onclick="closeProfileMenu(); navigateTo('profile_settings');" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-left transition">
+                                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i data-lucide="settings" class="w-4 h-4"></i></div>
+                                            <div><div class="text-xs font-semibold text-slate-900">Settings</div><div class="text-[10px] text-slate-500">Preferences and configuration</div></div>
+                                        </button>
+                                        <button onclick="closeProfileMenu(); navigateTo('audit_trail');" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-left transition">
+                                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4"></i></div>
+                                            <div><div class="text-xs font-semibold text-slate-900">Activity & Audit</div><div class="text-[10px] text-slate-500">View account activity</div></div>
+                                        </button>
+                                        <button onclick="closeProfileMenu(); navigateTo('profile_security');" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-left transition">
+                                            <div class="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center"><i data-lucide="shield-check" class="w-4 h-4"></i></div>
+                                            <div><div class="text-xs font-semibold text-slate-900">Security</div><div class="text-[10px] text-slate-500">Session and access controls</div></div>
+                                        </button>
+                                        <div class="h-px bg-slate-100 my-2"></div>
+                                        <button onclick="state.isAuthenticated = false; closeProfileMenu(); navigateTo('login'); showToast('Logged out securely', 'success');" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-rose-50 text-left transition text-rose-600">
+                                            <div class="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center"><i data-lucide="log-out" class="w-4 h-4"></i></div>
+                                            <div><div class="text-xs font-semibold">Logout</div><div class="text-[10px] text-rose-400">Sign out securely</div></div>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Secondary Navigation Tabs Bar -->
+                    <div class="bg-white border-t border-slate-100 px-4 sm:px-6 lg:px-8">
+                        <div class="max-w-7xl mx-auto arrow-scroll-wrap flex items-center gap-2 py-2">
+                            <button class="scroll-arrow" onclick="scrollPanel('secondary-nav-scroll', -1)" title="Scroll left"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                            <div id="secondary-nav-scroll" class="arrow-scroll-content flex-1">
+                                <div class="flex items-center gap-1 text-xs">
+                            <button onclick="navigateTo('dashboard')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'dashboard' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Dashboard</button>
+                            <button onclick="navigateTo('tenders')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${['tenders', 'tender_overview'].includes(state.currentScreen) ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Tender Management</button>
+                            <button onclick="navigateTo('bidders')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${['bidders', 'bidder_overview'].includes(state.currentScreen) ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Bidders & Dossiers</button>
+                            <button onclick="navigateTo('document_centre')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${['document_centre', 'document_viewer'].includes(state.currentScreen) ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Document Centre</button>
+                            <button onclick="navigateTo('extraction')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'extraction' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">AI Extraction</button>
+                            <button onclick="navigateTo('compliance_results')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'compliance_results' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Compliance Matrix</button>
+                            <button onclick="navigateTo('compliance_dashboard')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'compliance_dashboard' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Scoring & Risks</button>
+                            <button onclick="navigateTo('contradiction_radar')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'contradiction_radar' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Contradiction Radar</button>
+                            <button onclick="navigateTo('temporal')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'temporal' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Temporal Timeline</button>
+                            <button onclick="navigateTo('prove_it')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap flex items-center gap-1.5 ${state.currentScreen === 'prove_it' ? 'bg-blue-600 text-white shadow-sm' : 'text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200'}">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> PROVE IT (USP)
+                            </button>
+                            <button onclick="navigateTo('officer_review')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'officer_review' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Officer Review</button>
+                            <button onclick="navigateTo('final_decision')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${state.currentScreen === 'final_decision' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Final Decision</button>
+                            <button onclick="navigateTo('reports')" class="px-3 py-1.5 rounded-lg font-medium transition whitespace-nowrap ${['reports', 'audit_trail', 'connectors'].includes(state.currentScreen) ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-100'}">Reports & Connectors</button>
+                                </div>
+                            </div>
+                            <button class="scroll-arrow" onclick="scrollPanel('secondary-nav-scroll', 1)" title="Scroll right"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                </header>
+            `;
+        }
+
+        function renderLogin() {
+            return `
+                <div class="min-h-full flex-1 bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+                    <div class="w-full max-w-6xl min-h-[680px] bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden flex flex-col lg:flex-row">
+                        <div class="lg:w-[55%] bg-slate-900 text-white p-8 sm:p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden">
+                            <div class="absolute -right-24 -top-24 w-72 h-72 rounded-full border border-slate-700/70"></div>
+                            <div class="absolute -right-10 -bottom-28 w-80 h-80 rounded-full border border-slate-700/50"></div>
+                            <div class="relative z-10">
+                                <div class="flex items-center gap-3 mb-12">
+                                    <div class="w-12 h-12 rounded-2xl bg-white text-slate-900 flex items-center justify-center text-xl font-bold shadow-lg">V</div>
+                                    <div>
+                                        <div class="text-lg font-bold tracking-tight">VERITAS</div>
+                                        <div class="text-[10px] text-slate-400 uppercase tracking-[0.18em] font-semibold">Evidence Intelligence Platform</div>
+                                    </div>
+                                </div>
+                                <div class="max-w-xl">
+                                    <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-slate-700 bg-slate-800/70 text-[10px] font-semibold text-slate-300 uppercase tracking-wider mb-6">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Government Procurement Intelligence
+                                    </div>
+                                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05]">Verify with<br><span class="text-slate-300">evidence.</span></h1>
+                                    <p class="mt-6 text-sm sm:text-base text-slate-300 leading-7 max-w-lg">A secure evidence intelligence and temporal compliance platform designed to help procurement officers review tenders, validate bidder documents, trace compliance, and maintain an auditable decision trail.</p>
+                                </div>
+                            </div>
+                            <div class="relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 mt-12 lg:mt-8">
+                                <div class="border border-slate-700 rounded-2xl p-4 bg-slate-800/40">
+                                    <i data-lucide="file-check-2" class="w-5 h-5 text-slate-300 mb-3"></i>
+                                    <div class="text-xs font-semibold">Evidence First</div>
+                                    <div class="text-[10px] text-slate-400 mt-1 leading-4">Document-backed verification</div>
+                                </div>
+                                <div class="border border-slate-700 rounded-2xl p-4 bg-slate-800/40">
+                                    <i data-lucide="history" class="w-5 h-5 text-slate-300 mb-3"></i>
+                                    <div class="text-xs font-semibold">Temporal Trace</div>
+                                    <div class="text-[10px] text-slate-400 mt-1 leading-4">Track changes over time</div>
+                                </div>
+                                <div class="border border-slate-700 rounded-2xl p-4 bg-slate-800/40">
+                                    <i data-lucide="shield-check" class="w-5 h-5 text-slate-300 mb-3"></i>
+                                    <div class="text-xs font-semibold">Audit Ready</div>
+                                    <div class="text-[10px] text-slate-400 mt-1 leading-4">Transparent decision records</div>
+                                </div>
+                            </div>
+                            <div class="relative z-10 mt-8 pt-5 border-t border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                <div class="text-[10px] text-slate-500">VERITAS • GeM Procurement Compliance</div>
+                                <div class="flex items-center gap-2 text-[10px] text-slate-500"><i data-lucide="lock" class="w-3 h-3"></i> Secure Government Access</div>
+                            </div>
+                        </div>
+
+                        <div class="lg:w-[45%] p-7 sm:p-10 lg:p-14 flex items-center justify-center bg-white">
+                            <div class="w-full max-w-md">
+                                <div class="mb-8">
+                                    <div class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.16em] mb-2">Secure Officer Login</div>
+                                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Welcome to VERITAS</h2>
+                                    <p class="text-xs sm:text-sm text-slate-500 mt-2 leading-5">Sign in with your authorized government credentials to access the procurement verification portal.</p>
+                                </div>
+
+                                <form onsubmit="event.preventDefault(); state.isAuthenticated = true; navigateTo('dashboard'); showToast('Secure PKI Session Authenticated Successfully', 'success');" class="space-y-5">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-2">Government ID / Officer Email</label>
+                                        <div class="relative">
+                                            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                            <input type="email" value="vikram.malhotra@gov.in" required class="w-full pl-10 pr-3 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent bg-slate-50 font-medium">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <label class="block text-xs font-semibold text-slate-700">Hardware Token / PKI PIN</label>
+                                            <span class="text-[10px] font-medium text-slate-400">Protected</span>
+                                        </div>
+                                        <div class="relative">
+                                            <i data-lucide="key-round" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                                            <input type="password" value="••••••••••••" required class="w-full pl-10 pr-3 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent bg-slate-50 font-medium">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-slate-700 mb-2">Select Role / Jurisdiction</label>
+                                        <div class="relative">
+                                            <i data-lucide="badge-check" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                                            <select class="w-full pl-10 pr-3 py-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent bg-slate-50 font-medium text-slate-900 appearance-none">
+                                                <option>Procurement Officer (Primary Assessor)</option>
+                                                <option>Director of Procurement (Appellate Authority)</option>
+                                                <option>Central Audit & Vigilance Inspector</option>
+                                                <option>GeM System Administrator</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between text-xs pt-1">
+                                        <label class="flex items-center gap-2 text-slate-600 cursor-pointer">
+                                            <input type="checkbox" checked class="rounded border-slate-300 text-slate-900 focus:ring-slate-900"> Remember token
+                                        </label>
+                                        <a href="#" onclick="showToast('Contact NIC Helpdesk for token reset', 'error'); return false;" class="text-blue-600 font-semibold hover:underline">Forgot PKI PIN?</a>
+                                    </div>
+                                    <button type="submit" class="w-full py-3.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-sm transition flex items-center justify-center gap-2">
+                                        <i data-lucide="shield-check" class="w-4 h-4 text-blue-400"></i> Authenticate & Enter Portal
+                                    </button>
+                                </form>
+
+                                <div class="mt-7 pt-6 border-t border-slate-100">
+                                    <div class="flex items-start gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                                        <i data-lucide="info" class="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0"></i>
+                                        <div>
+                                            <div class="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Authorized Access Only</div>
+                                            <p class="text-[10px] text-slate-500 leading-4 mt-1">Access is monitored and recorded for security, compliance, and audit purposes. Use only credentials assigned to you.</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-center gap-2 mt-5 text-[10px] text-slate-400">
+                                        <i data-lucide="lock-keyhole" class="w-3 h-3"></i> Secure session • Audit logging enabled • Government network access
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8 fade-in">
+                    <!-- Welcome & Quick Stats Banner -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div>
+                            <div class="flex items-center gap-2 text-xs font-semibold text-blue-600 mb-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> GeM Procurement Cockpit • Live Session
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Welcome back, Vikram Malhotra</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">You have 2 active tenders requiring temporal compliance verification and 1 contradiction alert.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('upload_tender')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Ingest New Tender
+                            </button>
+                            <button onclick="navigateTo('prove_it')" class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl border border-blue-200 transition flex items-center gap-2">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Launch PROVE IT View
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-500 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Active Tenders</span>
+                                <div class="p-2 rounded-xl bg-slate-100 text-slate-700"><i data-lucide="folder-kanban" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-900">4</div>
+                            <div class="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                                <i data-lucide="trending-up" class="w-3 h-3"></i> 2 closing within 7 days
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-500 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Pending Reviews</span>
+                                <div class="p-2 rounded-xl bg-amber-50 text-amber-600"><i data-lucide="clock" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-900">3 Bidders</div>
+                            <div class="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                                <i data-lucide="alert-circle" class="w-3 h-3"></i> Requires officer verification
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-500 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Contradiction Radar</span>
+                                <div class="p-2 rounded-xl bg-rose-50 text-rose-600"><i data-lucide="shield-alert" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-900">1 Alert</div>
+                            <div class="text-[11px] text-rose-600 font-medium mt-1 flex items-center gap-1">
+                                <i data-lucide="alert-triangle" class="w-3 h-3"></i> GSTR-3B vs Audited P&L mismatch
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                            <div class="flex items-center justify-between text-slate-500 mb-2">
+                                <span class="text-xs font-semibold uppercase tracking-wider">Temporal Compliance</span>
+                                <div class="p-2 rounded-xl bg-emerald-50 text-emerald-600"><i data-lucide="calendar-check" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="text-2xl font-bold text-slate-900">94.2%</div>
+                            <div class="text-[11px] text-emerald-600 font-medium mt-1 flex items-center gap-1">
+                                <i data-lucide="check-circle-2" class="w-3 h-3"></i> Zero expired documents accepted
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Tenders Table & Quick Action List -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left 2 Cols: Tenders -->
+                        <div class="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Active GeM Procurement Tenders</h3>
+                                    <p class="text-xs text-slate-500">Real-time tracking of ingested RFPs & compliance status</p>
+                                </div>
+                                <button onclick="navigateTo('tenders')" class="text-xs font-semibold text-blue-600 hover:text-blue-800">View All →</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left text-xs">
+                                    <thead>
+                                        <tr class="border-b border-slate-100 text-slate-400 font-semibold uppercase tracking-wider">
+                                            <th class="py-3 px-3">Tender ID & Title</th>
+                                            <th class="py-3 px-3">Ministry</th>
+                                            <th class="py-3 px-3">Value</th>
+                                            <th class="py-3 px-3">Status</th>
+                                            <th class="py-3 px-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        ${state.tenders.map(t => `
+                                            <tr class="hover:bg-slate-50/80 transition">
+                                                <td class="py-3.5 px-3">
+                                                    <div class="font-semibold text-slate-900">${t.id}</div>
+                                                    <div class="text-slate-500 truncate max-w-xs">${t.title}</div>
+                                                </td>
+                                                <td class="py-3.5 px-3 text-slate-600 font-medium">${t.ministry}</td>
+                                                <td class="py-3.5 px-3 font-semibold text-slate-900">${t.value}</td>
+                                                <td class="py-3.5 px-3">
+                                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : t.status === 'Under Review' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">${t.status}</span>
+                                                </td>
+                                                <td class="py-3.5 px-3 text-right">
+                                                    <button onclick="state.activeTenderId = '${t.id}'; navigateTo('tender_overview');" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition shadow-sm">Inspect</button>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Right Col: High-Risk Items & Officer Queue -->
+                        <div class="space-y-6">
+                            <!-- High Risk Alert Box -->
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-bold text-slate-900 text-sm flex items-center gap-2">
+                                        <i data-lucide="shield-alert" class="w-4 h-4 text-rose-600"></i> High-Risk Flags
+                                    </h3>
+                                    <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold text-[10px] border border-rose-200">1 Item</span>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-rose-50/60 border border-rose-100 space-y-2">
+                                    <div class="flex items-center justify-between text-xs font-semibold text-rose-900">
+                                        <span>Bidder B (Beta Systems)</span>
+                                        <span class="text-[10px] bg-rose-200/70 text-rose-800 px-1.5 py-0.5 rounded">Mismatch</span>
+                                    </div>
+                                    <p class="text-[11px] text-rose-800">Declared annual turnover in GSTR-3B (₹12.4 Cr) does not match audited P&L certificate (₹18.2 Cr).</p>
+                                    <button onclick="navigateTo('contradiction_radar')" class="w-full mt-2 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition shadow-sm">Investigate Contradiction</button>
+                                </div>
+                            </div>
+
+                            <!-- Principle Reminder Box -->
+                            <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl text-white p-6 shadow-sm">
+                                <div class="flex items-center gap-2 font-semibold text-xs text-blue-400 mb-2">
+                                    <i data-lucide="scale" class="w-4 h-4"></i> Core Governance Principle
+                                </div>
+                                <p class="text-xs text-slate-300 leading-relaxed italic">"AI assists, evidence verifies, officer decides. Unverified documents are not non-compliant until human review is completed."</p>
+                                <div class="mt-4 pt-4 border-t border-slate-700 flex items-center justify-between text-[11px] text-slate-400">
+                                    <span>GeM Compliance Standard v4.2</span>
+                                    <span class="text-emerald-400 font-semibold">Audit Ready</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTenders() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Tender Management & Ingestion</h2>
+                            <p class="text-xs text-slate-500">Manage government procurement RFPs and automated requirement parsing.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('upload_tender')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center gap-2">
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i> Create / Upload Tender
+                            </button>
+                            ${renderWorkflowBidderSearch()}
+                        </div>
+                    </div>
+
+                    
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+                        ${state.tenders.map(t => `
+                            <div class="w-full max-w-[320px] mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 flex flex-col justify-between hover:border-slate-300 transition">
+                                <div>
+                                    <div class="flex items-center justify-between mb-3">
+                                        <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">${t.id}</span>
+                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${t.status}</span>
+                                    </div>
+                                    <h3 class="font-bold text-slate-900 text-base mb-1">${t.title}</h3>
+                                    <p class="text-xs text-slate-500 font-medium mb-4">${t.ministry}</p>
+                                    
+                                    <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-100 text-xs mb-4">
+                                        <div>
+                                            <span class="text-slate-400 block text-[10px]">EST. VALUE</span>
+                                            <span class="font-bold text-slate-900">${t.value}</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-slate-400 block text-[10px]">BIDDERS</span>
+                                            <span class="font-bold text-slate-900">${t.biddersCount} Enrolled</span>
+                                        </div>
+                                        <div>
+                                            <span class="text-slate-400 block text-[10px]">CLOSING</span>
+                                            <span class="font-bold text-slate-900">${t.closingDate}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="state.activeTenderId = '${t.id}'; navigateTo('tender_overview');" class="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">View Tender Details</button>
+                                    <button onclick="state.activeTenderId = '${t.id}'; navigateTo('requirements');" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Requirements</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTenderOverview() {
+            const tender = state.tenders.find(t => t.id === state.activeTenderId) || state.tenders[0];
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div>
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">${tender.id}</span>
+                                <span class="text-xs text-slate-500 font-medium">${tender.ministry}</span>
+                            </div>
+                            <h2 class="text-xl font-bold text-slate-900">${tender.title}</h2>
+                        </div>
+                    ${renderWorkflowBidderSearch()}
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('requirements')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                                <i data-lucide="list-checks" class="w-3.5 h-3.5"></i> View Extracted Requirements (5)
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left 2 Cols: Details -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                                <h3 class="font-bold text-slate-900 text-sm">Procurement Specification & Scope</h3>
+                                <p class="text-xs text-slate-600 leading-relaxed">
+                                    Supply, installation, and commissioning of Enterprise Server Infrastructure with redundant 10G switching, high-performance NVMe storage arrays, and Hardware Security Modules (HSM) conforming to ISO 27001 standards.
+                                </p>
+                                <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs">
+                                    <div>
+                                        <span class="text-slate-400 block">Tender Estimated Value</span>
+                                        <span class="font-bold text-slate-900 text-sm">${tender.value}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Submission Deadline</span>
+                                        <span class="font-bold text-slate-900 text-sm">${tender.closingDate} 18:00 IST</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">Required Turnover</span>
+                                        <span class="font-bold text-slate-900 text-sm">₹15.0 Cr Min</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-slate-400 block">GeM Portal Version</span>
+                                        <span class="font-bold text-slate-900 text-sm">GeM 4.0 Enterprise API</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                                <h3 class="font-bold text-slate-900 text-sm mb-4">Enrolled Bidders Summary</h3>
+                                <div class="space-y-3">
+                                    ${state.bidders.map(b => `
+                                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200/60 text-xs">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-xs">${b.name[0]}</div>
+                                                <div>
+                                                    <div class="font-semibold text-slate-900">${b.name}</div>
+                                                    <div class="text-slate-500">GSTIN: ${b.gstin} • Turnover: ${b.turnover}</div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-3">
+                                                <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${b.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : b.status === 'Needs Review' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">${b.status}</span>
+                                                <button onclick="state.activeBidderId = '${b.id}'; navigateTo('bidder_overview');" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition">Dossier</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Col: Quick Actions -->
+                        <div class="space-y-6">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                                <h3 class="font-bold text-slate-900 text-sm">Workflow Actions</h3>
+                                <div class="space-y-2">
+                                    <button onclick="navigateTo('requirements')" class="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-semibold flex items-center justify-between border border-slate-200 transition">
+                                        <span class="flex items-center gap-2"><i data-lucide="list-checks" class="w-4 h-4 text-slate-500"></i> Extracted Requirements</span>
+                                        <span class="text-blue-600">5 Rules</span>
+                                    </button>
+                                    <button onclick="navigateTo('extraction')" class="w-full py-2.5 px-3 bg-slate-50 hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-semibold flex items-center justify-between border border-slate-200 transition">
+                                        <span class="flex items-center gap-2"><i data-lucide="file-search" class="w-4 h-4 text-slate-500"></i> AI Document Extraction</span>
+                                        <span class="text-emerald-600">Complete</span>
+                                    </button>
+                                    <button onclick="navigateTo('prove_it')" class="w-full py-2.5 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-xs font-semibold flex items-center justify-between border border-blue-200 transition">
+                                        <span class="flex items-center gap-2"><i data-lucide="sparkles" class="w-4 h-4 text-blue-600"></i> PROVE IT Evidence Graph</span>
+                                        <span class="text-blue-700">USP</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderUploadTender() {
+            return `
+                <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 tracking-tight">Ingest GeM Tender Document</h2>
+                        <p class="text-xs text-slate-500">Enter complete tender and bidder information and upload all supporting documents for verification.</p>
+                    </div>
+
+                    <form onsubmit="event.preventDefault(); showToast('Tender and bidder information submitted successfully. Verification workflow started.', 'success'); setTimeout(() => navigateTo('requirements'), 1000);" class="space-y-6">
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Tender Information</h3>
+                                    <p class="text-[11px] text-slate-500">Core procurement and tender details.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">GeM Tender ID</label>
+                                    <input type="text" name="gemTenderId" placeholder="Enter GeM Tender ID" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tender Title</label>
+                                    <input type="text" name="tenderTitle" placeholder="Enter tender title" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Tender Type</label>
+                                    <select name="tenderType" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                        <option value="">Select tender type</option>
+                                        <option>Open Tender</option>
+                                        <option>Limited Tender</option>
+                                        <option>Direct Procurement</option>
+                                        <option>Reverse Auction</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Ministry / Department</label>
+                                    <input type="text" name="ministry" placeholder="Enter ministry or department" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Organization / Buyer</label>
+                                    <input type="text" name="organization" placeholder="Enter organization or buyer" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Estimated Tender Value</label>
+                                    <input type="text" name="tenderValue" placeholder="e.g. ₹4.82 Cr" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Bid Submission Date</label>
+                                    <input type="date" name="submissionDate" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Bid Closing Date</label>
+                                    <input type="date" name="closingDate" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Number of Items / Lots</label>
+                                    <input type="number" name="itemsCount" placeholder="Enter count" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                    <i data-lucide="building-2" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Bidder / Company Information</h3>
+                                    <p class="text-[11px] text-slate-500">Complete bidder identity and registration details.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Company / Bidder Name</label>
+                                    <input type="text" name="bidderName" placeholder="Enter company name" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">GSTIN</label>
+                                    <input type="text" name="gstin" placeholder="Enter GSTIN" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">PAN</label>
+                                    <input type="text" name="pan" placeholder="Enter PAN" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Udyam / Registration Number</label>
+                                    <input type="text" name="registrationNumber" placeholder="Enter registration number" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Bidder Type</label>
+                                    <select name="bidderType" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                        <option value="">Select bidder type</option>
+                                        <option>Company</option>
+                                        <option>LLP</option>
+                                        <option>Partnership</option>
+                                        <option>Proprietorship</option>
+                                        <option>Startup / MSME</option>
+                                        <option>Joint Venture</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Company Website</label>
+                                    <input type="url" name="website" placeholder="https://" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div class="md:col-span-2 lg:col-span-3">
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Registered Address</label>
+                                    <textarea name="registeredAddress" rows="2" placeholder="Enter complete registered address" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50 resize-none"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                    <i data-lucide="user-round" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Authorized Contact Information</h3>
+                                    <p class="text-[11px] text-slate-500">Primary contact responsible for the submitted bid.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Authorized Contact Person</label>
+                                    <input type="text" name="contactPerson" placeholder="Full name" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Designation</label>
+                                    <input type="text" name="designation" placeholder="Designation" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Official Email</label>
+                                    <input type="email" name="email" placeholder="official@email.com" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Phone Number</label>
+                                    <input type="tel" name="phone" placeholder="10-digit phone number" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-5">
+                            <div class="flex items-center gap-2">
+                                <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+                                    <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-bold text-slate-900 text-sm">Tender & Bidder Documents</h3>
+                                    <p class="text-[11px] text-slate-500">Browse files and upload the complete evidence set for verification.</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                <div class="border-2 border-dashed border-slate-200 hover:border-slate-400 transition rounded-2xl p-6 text-center bg-slate-50/50">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center mx-auto mb-3">
+                                        <i data-lucide="file-up" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 text-xs mb-1">Tender / RFP Document</h4>
+                                    <p class="text-[11px] text-slate-500 mb-3">PDF, DOC, DOCX up to 50MB</p>
+                                    <label class="inline-flex cursor-pointer px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold rounded-xl transition">
+                                        Browse Files
+                                        <input id="tenderDocument" type="file" accept=".pdf,.doc,.docx" class="hidden" onchange="document.getElementById('tenderFileName').textContent = this.files.length ? this.files[0].name : 'No file selected';">
+                                    </label>
+                                    <p id="tenderFileName" class="text-[10px] text-slate-500 mt-2">No file selected</p>
+                                </div>
+
+                                <div class="border-2 border-dashed border-slate-200 hover:border-slate-400 transition rounded-2xl p-6 text-center bg-slate-50/50">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center mx-auto mb-3">
+                                        <i data-lucide="files" class="w-5 h-5"></i>
+                                    </div>
+                                    <h4 class="font-bold text-slate-900 text-xs mb-1">Bidder Supporting Documents</h4>
+                                    <p class="text-[11px] text-slate-500 mb-3">GST, PAN, registration, financial, technical and certificates</p>
+                                    <label class="inline-flex cursor-pointer px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-semibold rounded-xl transition">
+                                        Browse Files
+                                        <input id="bidderDocuments" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" multiple class="hidden" onchange="document.getElementById('bidderFileName').textContent = this.files.length ? Array.from(this.files).map(f => f.name).join(', ') : 'No files selected';">
+                                    </label>
+                                    <p id="bidderFileName" class="text-[10px] text-slate-500 mt-2">No files selected</p>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Additional Document Category</label>
+                                    <select name="documentCategory" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                        <option value="">Select category</option>
+                                        <option>Financial Documents</option>
+                                        <option>Technical Documents</option>
+                                        <option>Legal / Registration Documents</option>
+                                        <option>Certifications</option>
+                                        <option>Declarations / Affidavits</option>
+                                        <option>Other Supporting Evidence</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1.5">Document Notes</label>
+                                    <input type="text" name="documentNotes" placeholder="Add notes about uploaded documents" class="w-full px-3 py-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-slate-900 bg-slate-50">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900 rounded-2xl p-6 text-white flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div>
+                                <h3 class="font-bold text-sm">Ready to start verification?</h3>
+                                <p class="text-[11px] text-slate-300 mt-1">The submitted tender, bidder information and uploaded evidence will enter the VERITAS verification workflow.</p>
+                            </div>
+                            <button type="submit" class="px-5 py-2.5 bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold rounded-xl transition shadow-sm flex items-center gap-2">
+                                <i data-lucide="shield-check" class="w-4 h-4"></i> Submit & Start Verification
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            `;
+        }
+
+        function renderRequirements() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Extracted Tender Requirements & Rules</h2>
+                            <p class="text-xs text-slate-500">AI-parsed mandatory and optional criteria for ${state.activeTenderId}.</p>
+                        </div>
+                    ${renderWorkflowBidderSearch()}
+                        <button onclick="navigateTo('compliance_results')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">View Compliance Matrix →</button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider">
+                                    <th class="py-3.5 px-4">Rule Code</th>
+                                    <th class="py-3.5 px-4">Category</th>
+                                    <th class="py-3.5 px-4">Requirement Specification</th>
+                                    <th class="py-3.5 px-4">Mandatory</th>
+                                    <th class="py-3.5 px-4">Bidder A (Alpha)</th>
+                                    <th class="py-3.5 px-4">Bidder B (Beta)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${state.requirements.map(r => `
+                                    <tr class="hover:bg-slate-50/80 transition">
+                                        <td class="py-4 px-4 font-semibold text-slate-900">${r.code}</td>
+                                        <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium">${r.category}</span></td>
+                                        <td class="py-4 px-4 text-slate-700 max-w-md">${r.desc}</td>
+                                        <td class="py-4 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-semibold ${r.mandatory ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-700'}">${r.mandatory ? 'Mandatory' : 'Optional'}</span></td>
+                                        <td class="py-4 px-4 font-semibold text-emerald-600">${r.bidderA}</td>
+                                        <td class="py-4 px-4 font-semibold ${r.bidderB.includes('Passed') ? 'text-emerald-600' : r.bidderB.includes('Contradiction') ? 'text-rose-600' : 'text-amber-600'}">${r.bidderB}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBidders() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Bidder Dossiers & Compliance Scores</h2>
+                            <p class="text-xs text-slate-500">Comprehensive verification profiles for all enrolled tender bidders.</p>
+                        </div>
+                        ${renderWorkflowBidderSearch()}
+                    </div>
+                        
+                        <div>
+                    </div>
+                    
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${state.bidders.map(b => `
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 flex flex-col justify-between hover:border-slate-300 transition">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white font-bold flex items-center justify-center text-sm">${b.name[0]}</div>
+                                        <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${b.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : b.status === 'Needs Review' ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-slate-100 text-slate-600'}">${b.status}</span>
+                                    </div>
+                                    <h3 class="font-bold text-slate-900 text-base mb-1">${b.name}</h3>
+                                    <p class="text-xs text-slate-500 mb-4">GSTIN: ${b.gstin} • PAN: ${b.pan}</p>
+
+                                    <div class="space-y-2 py-3 border-y border-slate-100 text-xs mb-4">
+                                        <div class="flex justify-between">
+                                            <span class="text-slate-400">Compliance Score:</span>
+                                            <span class="font-bold text-slate-900">${b.score}/100</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-slate-400">Declared Turnover:</span>
+                                            <span class="font-bold text-slate-900">${b.turnover}</span>
+                                        </div>
+                                        <div class="flex justify-between">
+                                            <span class="text-slate-400">Risk Assessment:</span>
+                                            <span class="font-bold ${b.risk === 'Low' ? 'text-emerald-600' : b.risk === 'Medium' ? 'text-amber-600' : 'text-rose-600'}">${b.risk} Risk</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="state.activeBidderId = '${b.id}'; navigateTo('bidder_overview');" class="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">View Dossier</button>
+                                    <button onclick="state.activeBidderId = '${b.id}'; navigateTo('prove_it');" class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold rounded-xl transition">Prove It</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderBidderOverview() {
+            const bidder = state.bidders.find(b => b.id === state.activeBidderId) || state.bidders[0];
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-14 h-14 rounded-2xl bg-slate-900 text-white font-bold flex items-center justify-center text-xl shadow-sm">${bidder.name[0]}</div>
+                            <div>
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h2 class="text-xl font-bold text-slate-900">${bidder.name}</h2>
+                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${bidder.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${bidder.status}</span>
+                                </div>
+                    ${renderWorkflowBidderSearch()}
+                                <p class="text-xs text-slate-500">GSTIN: ${bidder.gstin} • Udyam: ${bidder.udam} • PAN: ${bidder.pan}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('prove_it')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Launch PROVE IT Evidence Graph
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left 2 Cols: Dossier Details -->
+                        <div class="lg:col-span-2 space-y-6">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                                <h3 class="font-bold text-slate-900 text-sm">Uploaded Evidence & Documents</h3>
+                                <div class="space-y-3">
+                                    ${state.documents.filter(d => d.bidder.toLowerCase().includes(bidder.name.split(' ')[0].toLowerCase()) || true).map(d => `
+                                        <div class="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 border border-slate-200/60 text-xs">
+                                            <div class="flex items-center gap-3">
+                                                <div class="p-2.5 rounded-xl bg-slate-900 text-white"><i data-lucide="file-text" class="w-4 h-4"></i></div>
+                                                <div>
+                                                    <div class="font-semibold text-slate-900">${d.name}</div>
+                                                    <div class="text-slate-500">${d.type} • ${d.size} • ${d.pages} pages</div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${d.verified ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${d.verified ? 'Verified' : 'Pending'}</span>
+                                                <button onclick="state.selectedDocId = '${d.id}'; navigateTo('document_viewer');" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition">Preview</button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Col: Risk & Scorecard -->
+                        <div class="space-y-6">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                                <h3 class="font-bold text-slate-900 text-sm">Compliance Scorecard</h3>
+                                <div class="space-y-3 text-xs">
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Overall Score</span>
+                                        <span class="font-bold text-slate-900 text-sm">${bidder.score} / 100</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Financial Standing</span>
+                                        <span class="font-bold text-emerald-600">Passed</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Tax & GSTIN Validity</span>
+                                        <span class="font-bold ${bidder.status === 'Needs Review' ? 'text-amber-600' : 'text-emerald-600'}">${bidder.status === 'Needs Review' ? 'Review Required' : 'Verified'}</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Blacklist Check</span>
+                                        <span class="font-bold text-emerald-600">Clean (0 Hits)</span>
+                                    </div>
+                                </div>
+                                <button onclick="navigateTo('officer_review')" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">Proceed to Officer Review</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentCentre() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Document Centre & Evidence Vault</h2>
+                            <p class="text-xs text-slate-500">Centralized repository of all uploaded certificates, financial statements, and affidavits.</p>
+                        </div>
+                        <button onclick="showToast('Secure document vault synced with DigiLocker', 'success');" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Sync Vault
+                        </button>
+                    ${renderWorkflowBidderSearch()}
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider">
+                                    <th class="py-3.5 px-4">Document File Name</th>
+                                    <th class="py-3.5 px-4">Bidder Entity</th>
+                                    <th class="py-3.5 px-4">Category</th>
+                                    <th class="py-3.5 px-4">Size & Pages</th>
+                                    <th class="py-3.5 px-4">Status</th>
+                                    <th class="py-3.5 px-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${state.documents.map(d => `
+                                    <tr class="hover:bg-slate-50/80 transition">
+                                        <td class="py-4 px-4 font-semibold text-slate-900 flex items-center gap-2">
+                                            <i data-lucide="file-text" class="w-4 h-4 text-blue-600"></i> ${d.name}
+                                        </td>
+                                        <td class="py-4 px-4 text-slate-700 font-medium">${d.bidder}</td>
+                                        <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">${d.type}</span></td>
+                                        <td class="py-4 px-4 text-slate-500">${d.size} • ${d.pages} pages</td>
+                                        <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${d.verified ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${d.verified ? 'Verified' : 'Pending'}</span></td>
+                                        <td class="py-4 px-4 text-right">
+                                            <button onclick="state.selectedDocId = '${d.id}'; navigateTo('document_viewer');" class="px-3 py-1.5 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition shadow-sm">Inspect PDF</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDocumentViewer() {
+            const doc = state.documents.find(d => d.id === state.selectedDocId) || state.documents[0];
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <button onclick="navigateTo('document_centre')" class="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition"><i data-lucide="arrow-left" class="w-4 h-4"></i></button>
+                            <div>
+                                <h2 class="font-bold text-slate-900 text-sm">${doc.name}</h2>
+                                <p class="text-[11px] text-slate-500">Bidder: ${doc.bidder} • Verified by VERITAS AI OCR Engine</p>
+                            </div>
+                    ${renderWorkflowBidderSearch()}
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="showToast('Evidence snippet copied to clipboard', 'success');" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">Copy Snippet</button>
+                            <button onclick="navigateTo('prove_it')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-1.5">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> View in PROVE IT
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Realistic PDF Viewer Mock with Highlighted Extracted Evidence -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Left 2 Cols: Document Canvas -->
+                        <div class="lg:col-span-2 bg-slate-900 text-white p-8 rounded-2xl shadow-inner min-h-[550px] flex flex-col justify-between font-mono text-xs relative overflow-hidden">
+                            <div class="absolute top-4 right-4 bg-slate-800/80 backdrop-blur px-3 py-1 rounded-lg border border-slate-700 text-[11px] text-slate-300">Page 1 of ${doc.pages} • Zoom 100%</div>
+                            <div class="space-y-4 opacity-90">
+                                <div class="text-slate-400 font-bold border-b border-slate-800 pb-2">[ GOVERNMENT OF INDIA - TAX & AUDIT REGISTRATION CERTIFICATE ]</div>
+                                <p>DOCUMENT ID: <span class="text-blue-400 font-semibold">GEM-VERIFIED-2026-99821</span></p>
+                                <p>ENTITY NAME: <span class="text-emerald-400 font-semibold">${doc.bidder.toUpperCase()}</span></p>
+                                <p>GSTIN REGISTRATION: 29AABCA1234P1Z5 (ACTIVE & COMPLIANT)</p>
+                                <div class="p-3 rounded-lg bg-blue-500/20 border border-blue-400/40 text-blue-200 my-4">
+                                    <span class="font-bold text-white block mb-1">[AI EXTRACTED EVIDENCE MARKER #01]</span>
+                                    Average Annual Turnover for FY 2024-25: ₹24,50,00,000 (INR Twenty Four Crores Fifty Lakhs Only). Verified against GSTR-3B filings.
+                                </div>
+                                <p class="text-slate-500">Certified digitally via Controller of Certifying Authorities (CCA) India PKI infrastructure.</p>
+                            </div>
+                            <div class="flex items-center justify-between pt-6 border-t border-slate-800 text-slate-400 font-sans text-xs">
+                                <span>Hash: 8f4b2c9101ae738291028374a</span>
+                                <span class="text-emerald-400 font-semibold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Cryptographically Valid</span>
+                            </div>
+                        </div>
+
+                        <!-- Right Col: Extracted Metadata & Actions -->
+                        <div class="space-y-6">
+                            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+                                <h3 class="font-bold text-slate-900 text-sm">Extracted Evidence Properties</h3>
+                                <div class="space-y-3 text-xs">
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Extraction Confidence</span>
+                                        <span class="font-bold text-emerald-600">99.8%</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Source Page</span>
+                                        <span class="font-bold text-slate-900">Page 1, Paragraph 3</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Temporal Validity</span>
+                                        <span class="font-bold text-emerald-600">Valid through Mar 2027</span>
+                                    </div>
+                                    <div class="flex justify-between pb-2 border-b border-slate-100">
+                                        <span class="text-slate-500">Cross-Check Status</span>
+                                        <span class="font-bold text-emerald-600">Passed MCA Registry</span>
+                                    </div>
+                                </div>
+                                <button onclick="navigateTo('compliance_results')" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">View in Compliance Matrix</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderExtraction() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">AI Extraction & Automated Verification State</h2>
+                            <p class="text-xs text-slate-500">Deep extraction of tender clauses and bidder documents using VERITAS neural parser.</p>
+                        </div>
+                        <button onclick="showToast('AI re-scan completed successfully across all 3 bidders', 'success');" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="cpu" class="w-3.5 h-3.5"></i> Trigger Full Neural Re-Scan
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider">
+                                    <th class="py-3.5 px-4">Extracted Field / Parameter</th>
+                                    <th class="py-3.5 px-4">Bidder A Value</th>
+                                    <th class="py-3.5 px-4">Bidder B Value</th>
+                                    <th class="py-3.5 px-4">Confidence</th>
+                                    <th class="py-3.5 px-4">Verification State</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-4 px-4 font-semibold text-slate-900">Average Annual Turnover (FY22-25)</td>
+                                    <td class="py-4 px-4 text-emerald-600 font-semibold">₹24.5 Cr (>₹15 Cr req)</td>
+                                    <td class="py-4 px-4 text-amber-600 font-semibold">₹18.2 Cr (Mismatch flag)</td>
+                                    <td class="py-4 px-4 font-bold text-slate-900">99.4%</td>
+                                    <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Verified</span></td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-4 px-4 font-semibold text-slate-900">GSTIN Active Status</td>
+                                    <td class="py-4 px-4 text-emerald-600 font-semibold">Active (Karnataka)</td>
+                                    <td class="py-4 px-4 text-rose-600 font-semibold">Contradiction Found</td>
+                                    <td class="py-4 px-4 font-bold text-slate-900">100%</td>
+                                    <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Needs Review</span></td>
+                                </tr>
+                                <tr class="hover:bg-slate-50/80 transition">
+                                    <td class="py-4 px-4 font-semibold text-slate-900">ISO 27001 Certification Validity</td>
+                                    <td class="py-4 px-4 text-emerald-600 font-semibold">Valid (Exp: Oct 2027)</td>
+                                    <td class="py-4 px-4 text-emerald-600 font-semibold">Valid (Exp: Jan 2028)</td>
+                                    <td class="py-4 px-4 font-bold text-slate-900">98.9%</td>
+                                    <td class="py-4 px-4"><span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Verified</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderComplianceResults() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Compliance Results Matrix</h2>
+                            <p class="text-xs text-slate-500">Granular mapping of requirements, AI verification status, and evidence pointers.</p>
+                        </div>
+                        <button onclick="navigateTo('prove_it')" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> Launch PROVE IT View
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200/80 text-slate-500 font-semibold uppercase tracking-wider">
+                                    <th class="py-3.5 px-4">Requirement</th>
+                                    <th class="py-3.5 px-4">Rule Code</th>
+                                    <th class="py-3.5 px-4">Status</th>
+                                    <th class="py-3.5 px-4">Evidence Source</th>
+                                    <th class="py-3.5 px-4 text-right">Action (PROVE IT)</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100">
+                                ${state.requirements.map(r => `
+                                    <tr class="hover:bg-slate-50/80 transition">
+                                        <td class="py-4 px-4 font-semibold text-slate-900 max-w-sm">${r.desc}</td>
+                                        <td class="py-4 px-4 text-slate-600">${r.code}</td>
+                                        <td class="py-4 px-4">
+                                            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${r.status === 'Verified' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}">${r.status}</span>
+                                        </td>
+                                        <td class="py-4 px-4 text-slate-600 font-medium">Audited P&L / GSTR-3B</td>
+                                        <td class="py-4 px-4 text-right">
+                                            <button onclick="navigateTo('prove_it')" class="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold rounded-lg transition border border-blue-200">Prove It →</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderComplianceDashboard() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Compliance Scoring & Risk Distribution Dashboard</h2>
+                            <p class="text-xs text-slate-500">Transparent analytical breakdown of tender risk levels and scoring metrics.</p>
+                        </div>
+                        <button onclick="navigateTo('contradiction_radar')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">View Contradiction Radar</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Overall Compliance Index</span>
+                            <div class="text-3xl font-bold text-slate-900">91.4%</div>
+                            <p class="text-xs text-emerald-600 font-medium">↑ 4.2% higher than previous month average</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">High Risk Bidders Flagged</span>
+                            <div class="text-3xl font-bold text-rose-600">1 Bidder</div>
+                            <p class="text-xs text-rose-600 font-medium">Requires mandatory officer intervention</p>
+                        </div>
+                        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-3">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Automated Verification Rate</span>
+                            <div class="text-3xl font-bold text-slate-900">96.8%</div>
+                            <p class="text-xs text-slate-500">Zero manual OCR intervention needed</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderContradictionRadar() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Contradiction Radar & Conflict Detection</h2>
+                            <p class="text-xs text-slate-500">Automated cross-document verification detecting discrepancies in bidder declarations.</p>
+                        </div>
+                        <button onclick="showToast('Contradiction radar scan active', 'success');" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">Run Deep Scan</button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
+                        <div class="p-4 rounded-xl bg-rose-50 border border-rose-200 flex items-start gap-4">
+                            <div class="p-2.5 rounded-xl bg-rose-600 text-white mt-1"><i data-lucide="shield-alert" class="w-5 h-5"></i></div>
+                            <div class="space-y-2 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="font-bold text-rose-900 text-sm">Conflict Detected: Bidder B (Beta Systems & Networks Corp)</h3>
+                                    <span class="px-2 py-0.5 rounded bg-rose-200 text-rose-900 font-bold text-[10px]">Severity: High</span>
+                                </div>
+                                <p class="text-xs text-rose-800">
+                                    <strong>Declared Turnover in GSTR-3B:</strong> ₹12.4 Cr (Quarterly average)<br>
+                                    <strong>Declared Turnover in Audited P&L Certificate:</strong> ₹18.2 Cr<br>
+                                    <strong>Discrepancy Delta:</strong> ₹5.8 Cr (Exceeds acceptable 5% variance threshold).
+                                </p>
+                                <div class="flex items-center gap-3 pt-2">
+                                    <button onclick="navigateTo('prove_it')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition shadow-sm">Inspect via PROVE IT</button>
+                                    <button onclick="navigateTo('officer_review')" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-900 text-xs font-semibold rounded-lg transition border border-slate-300">Request Clarification from Bidder</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTemporalCompliance() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Temporal Compliance & Validity Timeline</h2>
+                            <p class="text-xs text-slate-500">Verifying document validity strictly as of bid submission date vs expiry dates.</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">Bid Submission Date: 12 April 2026</span>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+                                <div class="flex items-center justify-between text-xs font-semibold text-slate-900">
+                                    <span>ISO 27001 Certification (Bidder A)</span>
+                                    <span class="text-emerald-600 flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Valid on Submission Date</span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
+                                    <div class="bg-emerald-500 h-full w-3/4"></div>
+                                    <div class="bg-blue-600 h-full w-1/4" title="Submission Date"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-500">
+                                    <span>Issued: 15 Oct 2023</span>
+                                    <span class="font-bold text-slate-900">Submission: 12 Apr 2026</span>
+                                    <span>Expires: 14 Oct 2027</span>
+                                </div>
+                            </div>
+
+                            <div class="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-3">
+                                <div class="flex items-center justify-between text-xs font-semibold text-slate-900">
+                                    <span>GSTIN Active Certificate (Bidder B)</span>
+                                    <span class="text-amber-600 flex items-center gap-1"><i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i> Under Review / Renewal Pending</span>
+                                </div>
+                                <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden flex">
+                                    <div class="bg-amber-500 h-full w-4/5"></div>
+                                    <div class="bg-rose-500 h-full w-1/5"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-500">
+                                    <span>Issued: 10 Jan 2021</span>
+                                    <span class="font-bold text-slate-900">Submission: 12 Apr 2026</span>
+                                    <span>Renewal Due: 30 Mar 2026</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderProveIt() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <!-- USP Header -->
+                    <div class="bg-gradient-to-br from-slate-900 via-slate-800 to-blue-950 text-white p-8 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div class="space-y-2">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-semibold">
+                                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> VERITAS Core USP • Explainable Evidence Graph
+                            </div>
+                            <h2 class="text-2xl font-bold tracking-tight">PROVE IT: Step-by-Step Evidence Chain</h2>
+                            <p class="text-xs text-slate-300 max-w-2xl leading-relaxed">Every automated compliance verdict is fully traceable from the exact GeM requirement rule down to the verified character snippet in the original uploaded PDF.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="showToast('Evidence chain verified and exported to audit bundle', 'success');" class="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                                <i data-lucide="download" class="w-3.5 h-3.5"></i> Export Proof Bundle
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step-by-Step Evidence Graph Pipeline -->
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                        <!-- Step 1 -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-blue-600 tracking-wider uppercase block mb-1">Step 1</span>
+                                <h3 class="font-bold text-slate-900 text-sm mb-2">Requirement Rule</h3>
+                                <p class="text-xs text-slate-600">"Minimum average annual turnover of ₹15 Cr over last 3 financial years."</p>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 font-medium">Source: GeM RFP Clause 4.2</div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-blue-600 tracking-wider uppercase block mb-1">Step 2</span>
+                                <h3 class="font-bold text-slate-900 text-sm mb-2">Bidder Claim</h3>
+                                <p class="text-xs text-slate-600">"Alpha Infotech Solutions Pvt Ltd declares ₹24.5 Cr annual turnover."</p>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-500 font-medium">Form 3B: Financial Declaration</div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-blue-600 tracking-wider uppercase block mb-1">Step 3</span>
+                                <h3 class="font-bold text-slate-900 text-sm mb-2">Source Document</h3>
+                                <p class="text-xs text-slate-600">Audited Balance Sheet FY24-25 & GSTR-3B Quarterly Returns.</p>
+                            </div>
+                            <button onclick="navigateTo('document_viewer')" class="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition">View PDF</button>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-blue-600 tracking-wider uppercase block mb-1">Step 4</span>
+                                <h3 class="font-bold text-slate-900 text-sm mb-2">Extracted Evidence</h3>
+                                <p class="text-xs text-slate-600">Page 12: "Total Revenue reported as ₹24,50,00,000 with 99.8% OCR confidence."</p>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-[11px] text-emerald-800 font-medium">Confidence: 99.8%</div>
+                        </div>
+
+                        <!-- Step 5 -->
+                        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                            <div>
+                                <span class="text-[10px] font-bold text-emerald-600 tracking-wider uppercase block mb-1">Step 5</span>
+                                <h3 class="font-bold text-slate-900 text-sm mb-2">Final Result</h3>
+                                <p class="text-xs text-slate-600">Rule satisfied successfully. Validated against temporal submission window.</p>
+                            </div>
+                            <div class="p-2.5 rounded-xl bg-emerald-600 text-white text-[11px] font-bold text-center">PASSED & VERIFIED</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderOfficerReview() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Officer Review Queue</h2>
+                            <p class="text-xs text-slate-500">Human-controlled verification queue for flagged compliance items and contradiction reviews.</p>
+                        </div>
+                        <button onclick="navigateTo('final_decision')" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm">Proceed to Final Decision →</button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
+                        <div class="p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-4">
+                            <div class="p-2.5 rounded-xl bg-amber-500 text-white mt-1"><i data-lucide="clock" class="w-5 h-5"></i></div>
+                            <div class="space-y-3 flex-1">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="font-bold text-amber-900 text-sm">Pending Review: Bidder B (Beta Systems & Networks Corp)</h3>
+                                    <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800">Requires Action</span>
+                                </div>
+                                <p class="text-xs text-amber-800">Turnover mismatch detected between GSTR-3B and Audited P&L. Officer must either accept, request clarification, or reject evidence.</p>
+                                <div class="flex items-center gap-3 pt-2">
+                                    <button onclick="showToast('Evidence marked as Reviewed & Accepted by Officer', 'success');" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition shadow-sm">Mark Reviewed & Accept</button>
+                                    <button onclick="showToast('Clarification notice dispatched to Bidder B via GeM API', 'success');" class="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-900 text-xs font-semibold rounded-lg transition border border-slate-300">Request Clarification</button>
+                                    <button onclick="showToast('Evidence rejected. Disqualification flag set.', 'error');" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-lg transition shadow-sm">Reject Evidence</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderFinalDecision() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <!-- Banner -->
+                    <div class="bg-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-3 rounded-xl bg-blue-600 text-white"><i data-lucide="scale" class="w-6 h-6"></i></div>
+                            <div>
+                                <h2 class="text-lg font-bold">Final Procurement Officer Decision Panel</h2>
+                                <p class="text-xs text-slate-300">"Final decision is made by the Procurement Officer. AI assists and recommends, but human authority is absolute."</p>
+                            </div>
+                    ${renderWorkflowBidderSearch()}
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-blue-500/20 border border-blue-400/40 text-blue-300 text-xs font-semibold">Jurisdiction: Central GeM 4.0</span>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
+                        <h3 class="font-bold text-slate-900 text-sm">Select Qualified Bidder & Authorize Award Recommendation</h3>
+                        <div class="space-y-4">
+                            ${state.bidders.map(b => `
+                                <div class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 rounded-xl bg-slate-900 text-white font-bold flex items-center justify-center">${b.name[0]}</div>
+                                        <div>
+                                            <div class="font-semibold text-slate-900 text-sm">${b.name}</div>
+                                            <div class="text-slate-500">Score: ${b.score}/100 • Risk: ${b.risk} • Turnover: ${b.turnover}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button onclick="showToast('${b.name} officially QUALIFIED for contract award', 'success');" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition shadow-sm">Qualify Bidder</button>
+                                        <button onclick="showToast('${b.name} officially DISQUALIFIED with officer notes', 'error');" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl transition shadow-sm">Disqualify</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAuditTrail() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Immutable Audit Trail & Event Log</h2>
+                            <p class="text-xs text-slate-500">Cryptographically signed chronological log of all system and officer actions.</p>
+                        </div>
+                    ${renderWorkflowBidderSearch()}
+                        <button onclick="showToast('Audit trail exported as secure signed JSON bundle', 'success');" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Export Audit Log
+                        </button>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+                        <div class="space-y-4">
+                            ${state.auditTrail.map(a => `
+                                <div class="flex items-start gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0 text-xs">
+                                    <span class="font-mono text-slate-400 font-medium whitespace-nowrap">${a.time}</span>
+                                    <div class="flex-1">
+                                        <div class="font-semibold text-slate-900">${a.event}</div>
+                                        <div class="text-slate-500 mt-0.5">Actor: ${a.actor} • Type: <span class="uppercase font-bold text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">${a.type}</span></div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderReports() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Reports & Compliance Export Centre</h2>
+                            <p class="text-xs text-slate-500">Generate executive summary reports, audit dossiers, and CSV compliance matrices.</p>
+                        </div>
+                        <button onclick="showToast('Comprehensive report bundle generated successfully', 'success');" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl transition shadow-sm flex items-center gap-2">
+                            <i data-lucide="download" class="w-3.5 h-3.5"></i> Download PDF Report
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                            <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center"><i data-lucide="file-text" class="w-5 h-5"></i></div>
+                            <h3 class="font-bold text-slate-900 text-sm">Executive Compliance Dossier</h3>
+                            <p class="text-xs text-slate-500">Complete multi-bidder comparison, extracted evidence chains, and temporal validity logs.</p>
+                            <button onclick="showToast('Executive PDF downloaded', 'success');" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs rounded-xl transition">Export PDF</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                            <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center"><i data-lucide="table" class="w-5 h-5"></i></div>
+                            <h3 class="font-bold text-slate-900 text-sm">CSV Matrix Export</h3>
+                            <p class="text-xs text-slate-500">Raw requirement evaluation matrix for statistical analysis and central audit archives.</p>
+                            <button onclick="showToast('Compliance CSV downloaded', 'success');" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs rounded-xl transition">Export CSV</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                            <div class="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center"><i data-lucide="shield-check" class="w-5 h-5"></i></div>
+                            <h3 class="font-bold text-slate-900 text-sm">Signed Audit Bundle</h3>
+                            <p class="text-xs text-slate-500">Cryptographically hashed event log bundle conforming to IT Act standards.</p>
+                            <button onclick="showToast('Signed Audit Bundle downloaded', 'success');" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-900 font-semibold text-xs rounded-xl transition">Export Signed ZIP</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderConnectors() {
+            return `
+                
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-6 fade-in">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-xl font-bold text-slate-900 tracking-tight">Simulated Government Connectors & APIs</h2>
+                            <p class="text-xs text-slate-500">Real-time status of integrated government registry endpoints and secure vaults.</p>
+                        </div>
+                        <span class="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> All Systems Operational
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${state.connectors.map(c => `
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <div class="p-2 rounded-xl bg-slate-100 text-slate-900"><i data-lucide="${c.icon}" class="w-4 h-4"></i></div>
+                                    <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">${c.status}</span>
+                                </div>
+                                <h3 class="font-bold text-slate-900 text-sm">${c.name}</h3>
+                                <div class="flex justify-between text-[11px] text-slate-500 pt-2 border-t border-slate-100">
+                                    <span>Latency: ${c.latency}</span>
+                                    <span>Last Sync: ${c.lastSync}</span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            if (!state.isAuthenticated) {
+                app.innerHTML = renderLogin();
+            } else {
+                let content = '';
+                switch(state.currentScreen) {
+                    case 'dashboard': content = renderDashboard(); break;
+                    case 'tenders': content = renderTenders(); break;
+                    case 'tender_overview': content = renderTenderOverview(); break;
+                    case 'upload_tender': content = renderUploadTender(); break;
+                    case 'requirements': content = renderRequirements(); break;
+                    case 'bidders': content = renderBidders(); break;
+                    case 'bidder_overview': content = renderBidderOverview(); break;
+                    case 'document_centre': content = renderDocumentCentre(); break;
+                    case 'document_viewer': content = renderDocumentViewer(); break;
+                    case 'extraction': content = renderExtraction(); break;
+                    case 'compliance_results': content = renderComplianceResults(); break;
+                    case 'compliance_dashboard': content = renderComplianceDashboard(); break;
+                    case 'contradiction_radar': content = renderContradictionRadar(); break;
+                    case 'temporal': content = renderTemporalCompliance(); break;
+                    case 'prove_it': content = renderProveIt(); break;
+                    case 'officer_review': content = renderOfficerReview(); break;
+                    case 'final_decision': content = renderFinalDecision(); break;
+                    case 'audit_trail': content = renderAuditTrail(); break;
+                    case 'profile_details': content = renderProfileDetails(); break;
+                    case 'profile_settings': content = renderProfileSettings(); break;
+                    case 'profile_security': content = renderSecuritySettings(); break;
+                    case 'reports': content = renderReports(); break;
+                    case 'connectors': content = renderConnectors(); break;
+                    default: content = renderDashboard();
+                }
+
+                app.innerHTML = `
+                    ${renderHeader()}
+                    <main class="flex-1 flex flex-col">${content}</main>
+                    <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-500">
+                        VERITAS Evidence Intelligence Engine & Temporal Compliance for GeM • Secure Government Portal v4.2
+                    </footer>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        // Initialize on load
+        window.onload = function() {
+            render();
+        }
+    </script>
+</body>
+</html>
